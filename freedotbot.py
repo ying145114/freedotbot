@@ -121,7 +121,7 @@ class MsgHandler:
         '''
         当有信息显示（私信）时调用
         '''
-        self.main.show("*{}".format(self.text))
+        self.main.show("*{}".format(self.text), False)
 
     def emote(self):
         '''
@@ -308,7 +308,7 @@ class BotMain:  # 提供各种功能，接收websocket服务器的信息
         self.send_input_msg_t.start()
         # self.exec_bot_ctrl_t.start()
         ws.send(json.dumps({"cmd": "join", "channel": str(
-            self.chatroom), "nick": str(self.botname)}))
+            self.chatroom), "nick": str(self.botname), "token":"4n0n4mebot"}))
         self.msghandler.set_ws(ws)
 
     def on_close(self, ws, arg1=None, arg2=None):
@@ -334,15 +334,16 @@ class BotMain:  # 提供各种功能，接收websocket服务器的信息
         ms_data = json.loads(message)
         self.msghandler.handle(ms_data)
 
-    def show(self, text):
+    def show(self, text, doWriteFile=True):
         '''
         显示信息。
         '''
         text = str(text)
         self.show_msg_queue.put(text)
-        with open(self.logpath, 'a') as chatHistory:  # 记录日志
-            if os.path.getsize(self.logpath) < 1024576:
-                chatHistory.write(text + "\n")
+        if doWriteFile:
+            with open(self.logpath, 'a') as chatHistory:  # 记录日志
+                if os.path.getsize(self.logpath) < 1024576:
+                    chatHistory.write(text + "\n")
 
 
 class BotProc(Process):  # bot运行进程
@@ -372,6 +373,8 @@ class UIProc(Process):
         self.cloud_mode = cloud_mode
 
     def runUI(self):
+        ui.output.put_scrollable(ui.output.put_scope(
+            'chatscope'), height=600, keep_bottom=True)
         self.get_input_t = threading.Thread(target=self.get_input_msg)
         self.read_chat_t = threading.Thread(target=self.get_chat_msg)
         ui.session.register_thread(self.get_input_t)  # 在子线程中使用PyWebIO必须进行这一步
@@ -379,8 +382,8 @@ class UIProc(Process):
         ui.session.register_thread(self.read_chat_t)
         self.get_input_t.start()
         self.read_chat_t.start()
-        ui.output.put_scrollable(ui.output.put_scope(
-            'chatscope'), height=600, keep_bottom=True)
+        print('UI started!')
+
 
     def get_input_msg(self):
         '''
@@ -408,7 +411,6 @@ class UIProc(Process):
         ui.start_server(self.runUI, port=8080, debug=True,
                         remote_access=False)  # PyWebIO支持script模式与server模式，此处为server模式。
 
-
 if __name__ == '__main__':  # 使用多进程时必须使用。见https://www.cnblogs.com/wFrancow/p/8511711.html\
     # notebook模式开关。notebook模式下，禁用UI，启用notebook优化
     nest_asyncio.apply()
@@ -427,7 +429,7 @@ if __name__ == '__main__':  # 使用多进程时必须使用。见https://www.cn
     send_msg_queue = Queue()
     show_msg_queue = Queue()
     #bot_ctrl_queue = Queue()
-    botproc = BotProc(chatroom=hcroom, botname="dotbot", show_msg_queue=show_msg_queue,
+    botproc = BotProc(chatroom=hcroom, botname="dotbot#nimitawa", show_msg_queue=show_msg_queue,
                       send_msg_queue=send_msg_queue, bot_ctrl_queue=None, cloud_mode=cloud_mode)
     uiproc = UIProc(show_msg_queue=show_msg_queue,
                     send_msg_queue=send_msg_queue, bot_ctrl_queue=None, cloud_mode=cloud_mode)
